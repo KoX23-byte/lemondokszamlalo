@@ -22,17 +22,16 @@
             min-height: 100vh;
         }
 
-        /* ----- Konténerek, amiket ki/be kapcsolunk ----- */
+        /* ----- Konténerek ----- */
         .hidden { display: none !important; }
 
-        /* TARTALOM ELŐTÉRBE HOZVA */
         #authContainer, #gameContainer {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            position: relative; /* Pozicionálás alapja */
-            z-index: 2;       /* A tartalom legyen elöl (2-es réteg) */
+            position: relative; 
+            z-index: 2; /* Tartalom elöl */
         }
 
         #logoutButton {
@@ -61,6 +60,19 @@
         .authForm button { font-size: 18px; padding: 12px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
         #toggleToRegister, #toggleToLogin { color: #aaa; text-decoration: underline; cursor: pointer; margin-top: 15px; text-align: center; }
 
+        /*
+        *** ÚJ: HIBAÜZENET STÍLUSA ***
+        */
+        .errorText {
+            color: #f44336; /* Piros */
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+            /* Helyet foglalunk neki, hogy ne "ugráljon" az űrlap */
+            min-height: 1.2em; 
+        }
+
+
         /* ----- Játék Stílusa (Gomb + Tabella) ----- */
         
         /* TÉR HATÁSÚ GOMB */
@@ -68,12 +80,12 @@
             font-size: 22px;
             font-weight: bold;
             cursor: pointer;
-            background-color: #f44336; /* Piros gomb */
+            background-color: #f44336;
             color: white;
             border: none;
             width: 120px;
             height: 120px;
-            border-radius: 50%; /* Kör alak */
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -83,7 +95,6 @@
             transform: translateY(0); 
             transition: all 0.1s ease-out; 
         }
-
         #pontGomb:active { 
             background-color: #da190b;
             transform: translateY(4px);
@@ -93,12 +104,11 @@
         /* ÖSSZESÍTETT SZÁMLÁLÓ */
         #totalCountMessage {
             font-size: 22px;
-            color: #4CAF50; /* Zöld */
+            color: #4CAF50;
             font-weight: bold;
             margin-bottom: 20px;
             text-align: center;
         }
-
         #tabellaContainer {
             margin-top: 30px;
             width: 80%;
@@ -109,29 +119,25 @@
         .nev { font-weight: bold; }
         .pont { color: #f44336; font-weight: bold; }
 
-        /*
-        *** HÁTTÉRKÉPEK STÍLUSA ***
-        */
+        /* HÁTTÉRKÉPEK STÍLUSA */
         #hatterKep1 {
-            position: absolute; /* Rögzítés az oldalhoz képest */
-            top: 20px;          /* 20px fentről */
-            left: 20px;         /* 20px balról */
-            width: 400px;       /* Méret (állítsd át, amekkorára szeretnéd) */
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 400px;
             height: auto;
-            opacity: 0.8;       /* Áttetszőség (legyen halvány) */
-            z-index: 1;         /* A képek legyenek hátul (1-es réteg) */
+            opacity: 0.9;
+            z-index: 1; /* Hátul */
         }
-
         #hatterKep2 {
             position: absolute;
-            bottom: 20px;       /* 20px lentről */
-            right: 20px;        /* 20px jobbról */
+            bottom: 20px;
+            right: 20px;
             width: 300px;
             height: auto;
-            opacity: 0.8;
-            z-index: 1;
+            opacity: 0.9;
+            z-index: 1; /* Hátul */
         }
-
     </style>
 </head>
 <body>
@@ -142,21 +148,27 @@
     <div id="authContainer">
         
         <form id="loginForm" class="authForm">
-    <h2>Bejelentkezés</h2>
-    <input type="email" id="loginEmail" placeholder="E-mail cím" required>
-    <input type="password" id="loginPassword" placeholder="Jelszó" required>
-    <button type="submit">Belépés</button>
-    <div id="toggleToRegister">Nincs fiókod? Regisztrálj!</div>
-</form>
+            <h2>Bejelentkezés</h2>
+            <input type="email" id="loginEmail" placeholder="E-mail cím" required>
+            <input type="password" id="loginPassword" placeholder="Jelszó" required>
+            
+            <p id="loginError" class="errorText"></p>
+            
+            <button type="submit">Belépés</button>
+            <div id="toggleToRegister">Nincs fiókod? Regisztrálj!</div>
+        </form>
 
-<form id="registerForm" class="authForm hidden">
-    <h2>Regisztráció</h2>
-    <input type="text" id="registerUsername" placeholder="Felhasználónév" required>
-    <input type="email" id="registerEmail" placeholder="E-mail cím" required>
-    <input type="password" id="registerPassword" placeholder="Jelszó" required>
-    <button type="submit">Regisztráció</button>
-    <div id="toggleToLogin">Már van fiókod? Lépj be!</div>
-</form>
+        <form id="registerForm" class="authForm hidden">
+            <h2>Regisztráció</h2>
+            <input type="text" id="registerUsername" placeholder="Felhasználónév" required>
+            <input type="email" id="registerEmail" placeholder="E-mail cím" required>
+            <input type="password" id="registerPassword" placeholder="Jelszó" required>
+            
+            <p id="registerError" class="errorText"></p>
+            
+            <button type="submit">Regisztráció</button>
+            <div id="toggleToLogin">Már van fiókod? Lépj be!</div>
+        </form>
 
     </div>
 
@@ -174,7 +186,8 @@
         </div>
     </div>
 
-    <audio id="clickSound" preload="auto" src="gombhang.mp3"
+    <audio id="clickSound" preload="auto" src="gombhang.mp3"></audio>
+
 
     <script>
         // const firebaseConfig = {
@@ -205,6 +218,10 @@
         const toggleToRegister = document.getElementById('toggleToRegister');
         const toggleToLogin = document.getElementById('toggleToLogin');
         
+        // *** ÚJ: HIBAÜZENET ELEMEK ELÉRÉSE ***
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+        
         const logoutButton = document.getElementById('logoutButton');
         const gomb = document.getElementById('pontGomb');
         const tabellaLista = document.getElementById('tabellaLista');
@@ -219,15 +236,19 @@
         toggleToRegister.addEventListener('click', () => {
             loginForm.classList.add('hidden');
             registerForm.classList.remove('hidden');
+            loginError.innerText = ''; // Hiba törlése váltáskor
         });
         toggleToLogin.addEventListener('click', () => {
             loginForm.classList.remove('hidden');
             registerForm.classList.add('hidden');
+            registerError.innerText = ''; // Hiba törlése váltáskor
         });
 
-        // 2. REGISZTRÁCIÓ
+        // 2. REGISZTRÁCIÓ (*** JAVÍTVA: alert() helyett innerText ***)
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            registerError.innerText = ''; // Korábbi hiba törlése
+
             const username = document.getElementById('registerUsername').value;
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
@@ -237,21 +258,29 @@
                     const user = userCredential.user;
                     usersRef.child(user.uid).set({ username: username });
                     scoresRef.child(user.uid).set(0); 
+                    // Sikeres regisztráció, az 'onAuthStateChanged' kezeli a többit
                 })
                 .catch((error) => {
-                    alert("Hiba a regisztráció során: " + error.message);
+                    // *** JAVÍTÁS: Hiba kiírása az űrlapra ***
+                    registerError.innerText = error.message;
                 });
         });
 
-        // 3. BEJELENTKEZÉS
+        // 3. BEJELENTKEZÉS (*** JAVÍTVA: alert() helyett innerText ***)
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            loginError.innerText = ''; // Korábbi hiba törlése
+            
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
 
             auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                     // Sikeres bejelentkezés, az 'onAuthStateChanged' kezeli a többit
+                })
                 .catch((error) => {
-                    alert("Hiba a bejelentkezés során: " + error.message);
+                    // *** JAVÍTÁS: Hiba kiírása az űrlapra ***
+                    loginError.innerText = error.message;
                 });
         });
 
@@ -308,7 +337,7 @@
                     tabellaAdat.forEach(entry => {
                         const sor = document.createElement('div');
                         sor.className = 'tabellaSor';
-                        sor.innerHTML = `<span class="nev">${nev}:</span> <span class="pont">${pont}</span>`;
+                        sor.innerHTML = `<span class="nev">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
                         tabellaLista.appendChild(sor);
                     });
                 });
@@ -321,6 +350,9 @@
                 // Be van lépve
                 authContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
+                loginError.innerText = ''; // Hiba törlése
+                registerError.innerText = ''; // Hiba törlése
+
                 usersRef.child(user.uid).once('value').then(snapshot => {
                     const username = (snapshot.val() && snapshot.val().username) || user.email;
                     welcomeMessage.innerText = `Üdv, ${username}!`;
