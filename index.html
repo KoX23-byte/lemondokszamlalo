@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Tabella (Regisztrációval)</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    
+    <style>
+        body {
+            background-color: #000;
+            color: #FFF;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* ----- Konténerek, amiket ki/be kapcsolunk ----- */
+        .hidden {
+            display: none !important;
+        }
+
+        #authContainer, #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        #logoutButton {
+            margin-top: 20px;
+            background: none;
+            border: 1px solid #FFF;
+            color: #FFF;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        /* ----- Bejelentkező Űrlap Stílusa ----- */
+        .authForm {
+            display: flex;
+            flex-direction: column;
+            width: 80%;
+            max-width: 300px;
+            padding: 20px;
+            border: 1px solid #555;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .authForm h2 {
+            text-align: center;
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .authForm input {
+            font-size: 18px;
+            padding: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            border-radius: 5px;
+            border: none;
+        }
+
+        .authForm button {
+            font-size: 18px;
+            padding: 12px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        
+        #toggleToRegister, #toggleToLogin {
+            color: #aaa;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        /* ----- Játék Stílusa (Gomb + Tabella) ----- */
+        #pontGomb {
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #f44336; /* Piros gomb */
+            color: white;
+            border: none;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%; /* Kör alak */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        #pontGomb:active { background-color: #da190b; }
+
+        #tabellaContainer {
+            margin-top: 30px;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        #tabellaContainer h2 {
+            text-align: center;
+            border-bottom: 2px solid #FFF;
+            padding-bottom: 10px;
+        }
+
+        .tabellaSor {
+            font-size: 20px;
+            padding: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nev { font-weight: bold; }
+        .pont { color: #f44336; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div id="authContainer">
+        
+        <form id="loginForm" class="authForm">
+            <h2>Bejelentkezés</h2>
+            <input type="email" id="loginEmail" placeholder="E-mail cím" required>
+            <input type="password" id="loginPassword" placeholder="Jelszó" required>
+            <button type="submit">Belépés</button>
+            <div id="toggleToRegister">Nincs fiókod? Regisztrálj!</div>
+        </form>
+
+        <form id="registerForm" class="authForm hidden">
+            <h2>Regisztráció</h2>
+            <input type="text" id="registerUsername" placeholder="Felhasználónév" required>
+            <input type="email" id="registerEmail" placeholder="E-mail cím" required>
+            <input type="password" id="registerPassword" placeholder="Jelszó" required>
+            <button type="submit">Regisztráció</button>
+            <div id="toggleToLogin">Már van fiókod? Lépj be!</div>
+        </form>
+
+    </div>
+
+    <div id="gameContainer" class="hidden">
+
+        <h3 id="welcomeMessage"></h3>
+        
+        <button id="pontGomb">Lemondok</button>
+        <button id="logoutButton">Kijelentkezés</button>
+
+        <div id="tabellaContainer">
+            <h2>Tabella</h2>
+            <div id="tabellaLista">
+                </div>
+        </div>
+
+    </div>
+
+
+    <script>
+        const firebaseConfig = {
+  	apiKey: "AIzaSyDrNnPvPidkN1Ue9AEtn5KB0UTaDPQjWrY",
+  	authDomain: "lemondok-f71e8.firebaseapp.com",
+ 	projectId: "lemondok-f71e8",
+  	storageBucket: "lemondok-f71e8.firebasestorage.app",
+ 	messagingSenderId: "892789527717",
+ 	appId: "1:892789527717:web:3dc9f50b2571ffb646294c"
+};
+        // -->
+
+        // --- Alkalmazás inicializálása ---
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+
+        // --- Referenciák az Adatbázis ágaihoz ---
+        const scoresRef = database.ref('scores');
+        const usersRef = database.ref('users');
+
+        // --- HTML Elemek elérése ---
+        const authContainer = document.getElementById('authContainer');
+        const gameContainer = document.getElementById('gameContainer');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const toggleToRegister = document.getElementById('toggleToRegister');
+        const toggleToLogin = document.getElementById('toggleToLogin');
+        
+        const logoutButton = document.getElementById('logoutButton');
+        const gomb = document.getElementById('pontGomb');
+        const tabellaLista = document.getElementById('tabellaLista');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+
+        // --- Logika ---
+
+        // 1. ÁTVÁLTÁS A FORMOK KÖZÖTT
+        toggleToRegister.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+        });
+        toggleToLogin.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        });
+
+
+        // 2. REGISZTRÁCIÓ
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            // 1. Létrehozzuk a felhasználót az Auth szolgáltatásban
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Sikeres regisztráció!
+                    const user = userCredential.user;
+                    
+                    // 2. Elmentjük a felhasználónevet a UserID-jához
+                    usersRef.child(user.uid).set({
+                        username: username
+                    });
+                    
+                    // 3. Létrehozzuk a kezdő pontszámát (0)
+                    scoresRef.child(user.uid).set(0);
+                    
+                    // A 'onAuthStateChanged' figyelő automatikusan kezeli a beléptetést
+                })
+                .catch((error) => {
+                    alert("Hiba a regisztráció során: " + error.message);
+                });
+        });
+
+        // 3. BEJELENTKEZÉS
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Sikeres belépés, az 'onAuthStateChanged' kezeli a többit
+                })
+                .catch((error) => {
+                    alert("Hiba a bejelentkezés során: " + error.message);
+                });
+        });
+
+        // 4. KIJELENTKEZÉS
+        logoutButton.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // 5. GOMBNYOMÁS (MÁR BELÉPETT FELHASZNÁLÓKÉNT)
+        gomb.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) return; // Biztonsági ellenőrzés
+
+            const userScoreRef = scoresRef.child(user.uid);
+
+            // Tranzakció a biztonságos növeléshez
+            userScoreRef.transaction((jelenlegiPontszam) => {
+                return (jelenlegiPontszam || 0) + 1;
+            });
+        });
+
+        // 6. TABELLA FRISSÍTÉSE (A LEGBONYOLULTABB RÉSZ)
+        // Két adatforrást (pontok és nevek) kell kombinálnunk
+        
+        function frissitsTabellat() {
+            // 1. Lekérjük a pontokat
+            scoresRef.once('value').then((scoresSnapshot) => {
+                const scores = scoresSnapshot.val() || {};
+                
+                // 2. Lekérjük a neveket
+                usersRef.once('value').then((usersSnapshot) => {
+                    const users = usersSnapshot.val() || {};
+
+                    // 3. Kombináljuk a kettőt
+                    const tabellaAdat = Object.keys(scores).map(uid => {
+                        return {
+                            // Ha valamiért hiányzik a név, 'Ismeretlen'-t írunk
+                            nev: (users[uid] && users[uid].username) ? users[uid].username : 'Ismeretlen',
+                            pont: scores[uid]
+                        };
+                    });
+
+                    // 4. Rendezés pontszám szerint
+                    tabellaAdat.sort((a, b) => b.pont - a.pont);
+
+                    // 5. Megjelenítés (HTML generálás)
+                    tabellaLista.innerHTML = ''; // Lista kiürítése
+                    tabellaAdat.forEach(entry => {
+                        const sor = document.createElement('div');
+                        sor.className = 'tabellaSor';
+                        sor.innerHTML = `<span class="nev">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
+                        tabellaLista.appendChild(sor);
+                    });
+                });
+            });
+        }
+
+
+        // 7. A KÖZPONTI FIGYELŐ (AUTH STATE)
+        // Ez fut le oldalbetöltéskor, és ez dönti el, mit lát a felhasználó
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Felhasználó be van lépve
+                authContainer.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+
+                // Üdvözlő üzenet (lekérjük a nevét az adatbázisból)
+                usersRef.child(user.uid).once('value').then(snapshot => {
+                    const username = (snapshot.val() && snapshot.val().username) || user.email;
+                    welcomeMessage.innerText = `Üdv, ${username}!`;
+                });
+
+                // Elindítjuk a tabella figyelését
+                // Mostantól BÁRMIKOR változik a pont, a tabella frissül
+                scoresRef.on('value', frissitsTabellat);
+
+            } else {
+                // Felhasználó ki van lépve
+                authContainer.classList.remove('hidden');
+                gameContainer.classList.add('hidden');
+                welcomeMessage.innerText = '';
+                
+                // Leállítjuk a tabella figyelését (hogy ne fogyasszon erőforrást)
+                scoresRef.off('value', frissitsTabellat);
+                tabellaLista.innerHTML = ''; // Kiürítjük a tabellát
+            }
+        });
+
+    </script>
+</body>
+</html>
