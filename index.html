@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     
-    <style>
+  <style>
         body {
             background-color: #000;
             color: #FFF;
@@ -21,16 +21,20 @@
             margin: 0;
             min-height: 100vh;
         }
+
+        /* ----- Konténerek, amiket ki/be kapcsolunk ----- */
         .hidden { display: none !important; }
+
+        /* JAVÍTÁS ITT: A TARTALOM ELŐTÉRBE HOZVA */
         #authContainer, #gameContainer {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            /* *** ÚJ: TARTALOM ELŐTÉRBE HOZÁSA *** */
             position: relative; /* Pozicionálás alapja */
             z-index: 2;       /* A tartalom legyen elöl (2-es réteg) */
         }
+
         #logoutButton {
             margin-top: 20px;
             background: none;
@@ -40,6 +44,8 @@
             cursor: pointer;
             border-radius: 5px;
         }
+
+        /* ----- Bejelentkező Űrlap Stílusa ----- */
         .authForm {
             display: flex;
             flex-direction: column;
@@ -57,9 +63,6 @@
 
         /* ----- Játék Stílusa (Gomb + Tabella) ----- */
         
-        /*
-        *** VÁLTOZTATÁS: TÉR HATÁSÚ GOMB ***
-        */
         #pontGomb {
             font-size: 22px;
             font-weight: bold;
@@ -75,32 +78,16 @@
             align-items: center;
             text-align: center;
             margin-top: 20px;
-            
-            /* --- ÚJ 3D HATÁS --- */
-            /* Létrehoz egy 8px magas "élt" a gomb alatt egy sötétebb piros színnel */
             box-shadow: 0 8px 0 #ab281e; 
-            /* A gomb alaphelyzete (még nincs elmozdítva) */
             transform: translateY(0); 
-            /* Átmenet mindenre (szín, árnyék, pozíció) a finom animációért */
             transition: all 0.1s ease-out; 
         }
 
-        /* Amikor a gomb le van nyomva (aktív) */
         #pontGomb:active { 
-            background-color: #da190b; /* Sötétebb szín, mint eddig */
-            
-            /* --- ÚJ 3D HATÁS (LENYOMVA) --- */
-            /* A gomb 4px-t "benyomódik" (lejjebb mozog) */
+            background-color: #da190b;
             transform: translateY(4px);
-            /* Az "él" magassága 4px-re csökken, mintha lenyomódna */
             box-shadow: 0 4px 0 #ab281e;
         }
-
-        /*
-        *** VÁLTOZTATÁS: A RÉGI ANIMÁCIÓT TÖRÖLTÜK ***
-        Az @keyframes click-animation és a .clicked osztályra már nincs szükség,
-        mert a :active állapot kezeli a lenyomást.
-        */
 
         #totalCountMessage {
             font-size: 22px;
@@ -118,9 +105,11 @@
         #tabellaContainer h2 { text-align: center; border-bottom: 2px solid #FFF; padding-bottom: 10px; }
         .tabellaSor { font-size: 20px; padding: 8px 0; display: flex; justify-content: space-between; }
         .nev { font-weight: bold; }
-        .pont { color: #f44336; font-weight: bold; 
+        .pont { color: #f44336; font-weight: bold; }
+
         /*
-        *** ÚJ: HÁTTÉRKÉPEK STÍLUSA ***
+        *** JAVÍTÁS ITT: HÁTTÉRKÉPEK STÍLUSA ***
+        (Most már biztosan a <style> blokkon belül van)
         */
         #hatterKep1 {
             position: absolute; /* Rögzítés az oldalhoz képest */
@@ -139,7 +128,8 @@
             width: 150px;
             height: auto;
             opacity: 0.3;
-            z-index: 1; }
+            z-index: 1;
+        }
 
     </style>
 </head>
