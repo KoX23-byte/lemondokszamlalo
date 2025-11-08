@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     
-  <style>
+    <style>
         body {
             background-color: #000;
             color: #FFF;
@@ -25,7 +25,7 @@
         /* ----- Konténerek, amiket ki/be kapcsolunk ----- */
         .hidden { display: none !important; }
 
-        /* JAVÍTÁS ITT: A TARTALOM ELŐTÉRBE HOZVA */
+        /* TARTALOM ELŐTÉRBE HOZVA */
         #authContainer, #gameContainer {
             display: flex;
             flex-direction: column;
@@ -63,6 +63,7 @@
 
         /* ----- Játék Stílusa (Gomb + Tabella) ----- */
         
+        /* TÉR HATÁSÚ GOMB */
         #pontGomb {
             font-size: 22px;
             font-weight: bold;
@@ -89,6 +90,7 @@
             box-shadow: 0 4px 0 #ab281e;
         }
 
+        /* ÖSSZESÍTETT SZÁMLÁLÓ */
         #totalCountMessage {
             font-size: 22px;
             color: #4CAF50; /* Zöld */
@@ -108,8 +110,7 @@
         .pont { color: #f44336; font-weight: bold; }
 
         /*
-        *** JAVÍTÁS ITT: HÁTTÉRKÉPEK STÍLUSA ***
-        (Most már biztosan a <style> blokkon belül van)
+        *** HÁTTÉRKÉPEK STÍLUSA ***
         */
         #hatterKep1 {
             position: absolute; /* Rögzítés az oldalhoz képest */
@@ -117,7 +118,7 @@
             left: 20px;         /* 20px balról */
             width: 150px;       /* Méret (állítsd át, amekkorára szeretnéd) */
             height: auto;
-            opacity: 0.3;       /* Áttetszőség (legyen halvány) */
+            opacity: 0.8;       /* Áttetszőség (legyen halvány) */
             z-index: 1;         /* A képek legyenek hátul (1-es réteg) */
         }
 
@@ -127,7 +128,7 @@
             right: 20px;        /* 20px jobbról */
             width: 150px;
             height: auto;
-            opacity: 0.3;
+            opacity: 0.8;
             z-index: 1;
         }
 
@@ -135,9 +136,11 @@
 </head>
 <body>
 
-    <img id="hatterKep1.png" src="gyuriwo.png" alt="háttér dekoráció">
+    <img id="hatterKep1" src="gyuriwo.png" alt="háttér dekoráció">
     <img id="hatterKep2" src="ehoklogo.png" alt="háttér dekoráció">
+
     <div id="authContainer">
+        
         <form id="loginForm" class="authForm">
             <h2>Bejelentkezés</h2>
             <input type="email" id="loginEmail" placeholder="E-mail cím" required>
@@ -145,6 +148,7 @@
             <button type="submit">Belépés</button>
             <div id="toggleToRegister">Nincs fiókod? Regisztrálj!</div>
         </form>
+
         <form id="registerForm" class="authForm hidden">
             <h2>Regisztráció</h2>
             <input type="text" id="registerUsername" placeholder="Felhasználónév" required>
@@ -153,9 +157,11 @@
             <button type="submit">Regisztráció</button>
             <div id="toggleToLogin">Már van fiókod? Lépj be!</div>
         </form>
+
     </div>
 
     <div id="gameContainer" class="hidden">
+
         <h3 id="welcomeMessage"></h3>
         
         <button id="pontGomb">Lemondok</button>
@@ -168,17 +174,17 @@
         </div>
     </div>
 
-<audio id="clickSound" preload="auto" src="gombhang.mp3"></audio>
+    <audio id="clickSound" preload="auto" src="gombhang.mp3"
 
     <script>
-        const firebaseConfig = {
+        // const firebaseConfig = {
           apiKey: "AIzaSyDrNnPvPidkN1Ue9AEtn5KB0UTaDPQjWrY",
           authDomain: "lemondok-f71e8.firebaseapp.com",
           databaseURL: "https://lemondok-f71e8-default-rtdb.europe-west1.firebasedatabase.app",
           projectId: "lemondok-f71e8",
           storageBucket: "lemondok-f71e8.firebasestorage.app",
           messagingSenderId: "892789527717",
-          appId: "1:892789527717:web:3dc9f50b2571ffb646294c"
+          appId: "1:892789527717:web:3dc9f0b2571ffb646294c"
         };
         // -->
 
@@ -254,16 +260,10 @@
             auth.signOut();
         });
 
-        // 5. GOMBNYOMÁS (*** VÁLTOZTATÁS ***)
+        // 5. GOMBNYOMÁS
         gomb.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) return;
-
-            /*
-            *** VÁLTOZTATÁS: A JAVASCRIPT ANIMÁCIÓ TÖRÖLVE ***
-            A .clicked osztály és a setTimeout hívás eltávolítva,
-            mert a CSS :active állapota kezeli az animációt.
-            */
 
             // Hang
             clickSound.currentTime = 0; 
@@ -308,7 +308,7 @@
                     tabellaAdat.forEach(entry => {
                         const sor = document.createElement('div');
                         sor.className = 'tabellaSor';
-                        sor.innerHTML = `<span class="nev">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
+                        sor.innerHTML = `<span class="nev">${nev}:</span> <span class="pont">${pont}</span>`;
                         tabellaLista.appendChild(sor);
                     });
                 });
