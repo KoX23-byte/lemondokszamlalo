@@ -60,18 +60,14 @@
         .authForm button { font-size: 18px; padding: 12px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
         #toggleToRegister, #toggleToLogin { color: #aaa; text-decoration: underline; cursor: pointer; margin-top: 15px; text-align: center; }
 
-        /*
-        *** ÚJ: HIBAÜZENET STÍLUSA ***
-        */
+        /* HIBAÜZENET STÍLUSA */
         .errorText {
             color: #f44336; /* Piros */
             font-weight: bold;
             margin-top: 10px;
             text-align: center;
-            /* Helyet foglalunk neki, hogy ne "ugráljon" az űrlap */
             min-height: 1.2em; 
         }
-
 
         /* ----- Játék Stílusa (Gomb + Tabella) ----- */
         
@@ -151,9 +147,7 @@
             <h2>Bejelentkezés</h2>
             <input type="email" id="loginEmail" placeholder="E-mail cím" required>
             <input type="password" id="loginPassword" placeholder="Jelszó" required>
-            
             <p id="loginError" class="errorText"></p>
-            
             <button type="submit">Belépés</button>
             <div id="toggleToRegister">Nincs fiókod? Regisztrálj!</div>
         </form>
@@ -163,9 +157,7 @@
             <input type="text" id="registerUsername" placeholder="Felhasználónév" required>
             <input type="email" id="registerEmail" placeholder="E-mail cím" required>
             <input type="password" id="registerPassword" placeholder="Jelszó" required>
-            
             <p id="registerError" class="errorText"></p>
-            
             <button type="submit">Regisztráció</button>
             <div id="toggleToLogin">Már van fiókod? Lépj be!</div>
         </form>
@@ -187,8 +179,6 @@
     </div>
 
     <audio id="clickSound" preload="auto" src="gombhang.mp3"></audio>
-
-
     <script>
         const firebaseConfig = {
           apiKey: "AIzaSyDrNnPvPidkN1Ue9AEtn5KB0UTaDPQjWrY",
@@ -218,7 +208,6 @@
         const toggleToRegister = document.getElementById('toggleToRegister');
         const toggleToLogin = document.getElementById('toggleToLogin');
         
-        // *** ÚJ: HIBAÜZENET ELEMEK ELÉRÉSE ***
         const loginError = document.getElementById('loginError');
         const registerError = document.getElementById('registerError');
         
@@ -244,10 +233,10 @@
             registerError.innerText = ''; // Hiba törlése váltáskor
         });
 
-        // 2. REGISZTRÁCIÓ (*** JAVÍTVA: alert() helyett innerText ***)
+        // 2. REGISZTRÁCIÓ (*** FRISSÍTETT HIBAKEZELÉS ***)
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            registerError.innerText = ''; // Korábbi hiba törlése
+            registerError.innerText = ''; 
 
             const username = document.getElementById('registerUsername').value;
             const email = document.getElementById('registerEmail').value;
@@ -258,29 +247,55 @@
                     const user = userCredential.user;
                     usersRef.child(user.uid).set({ username: username });
                     scoresRef.child(user.uid).set(0); 
-                    // Sikeres regisztráció, az 'onAuthStateChanged' kezeli a többit
                 })
                 .catch((error) => {
-                    // *** JAVÍTÁS: Hiba kiírása az űrlapra ***
-                    registerError.innerText = error.message;
+                    // *** VÁLTOZTATÁS ITT: Hiba fordítása ***
+                    switch (error.code) {
+                        case 'auth/email-already-in-use':
+                            registerError.innerText = 'Egyszer már regisztráltal he';
+                            break;
+                        case 'auth/weak-password':
+                            registerError.innerText = 'Ez a jelszó kevés lesz';
+                            break;
+                        case 'auth/invalid-email':
+                            registerError.innerText = 'Érvénytelen e-mail';
+                            break;
+                        default:
+                            registerError.innerText = 'Hiba a regisztráció során';
+                    }
                 });
         });
 
-        // 3. BEJELENTKEZÉS (*** JAVÍTVA: alert() helyett innerText ***)
+        // 3. BEJELENTKEZÉS (*** FRISSÍTETT HIBAKEZELÉS ***)
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            loginError.innerText = ''; // Korábbi hiba törlése
+            loginError.innerText = ''; 
             
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
 
             auth.signInWithEmailAndPassword(email, password)
                 .then((userCredential) => {
-                     // Sikeres bejelentkezés, az 'onAuthStateChanged' kezeli a többit
+                     // Sikeres bejelentkezés
                 })
                 .catch((error) => {
-                    // *** JAVÍTÁS: Hiba kiírása az űrlapra ***
-                    loginError.innerText = error.message;
+                    // *** VÁLTOZTATÁS ITT: Hiba fordítása ***
+                    switch (error.code) {
+                        case 'auth/wrong-password':
+                            loginError.innerText = 'Szar jelszó!';
+                            break;
+                        case 'auth/user-not-found':
+                            loginError.innerText = 'Előbb regisztrálni kéne';
+                            break;
+                        case 'auth/invalid-email':
+                            loginError.innerText = 'Érvénytelen e-mail';
+                            break;
+                        case 'auth/too-many-requests':
+                            loginError.innerText = 'Túl sok próbálkozás. Próbáld később.';
+                            break;
+                        default:
+                            loginError.innerText = 'Hiba a bejelentkezés során.';
+                    }
                 });
         });
 
@@ -293,12 +308,8 @@
         gomb.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) return;
-
-            // Hang
             clickSound.currentTime = 0; 
             clickSound.play();
-
-            // Adatbázis írás
             const userScoreRef = scoresRef.child(user.uid);
             userScoreRef.transaction((jelenlegiPontszam) => {
                 return (jelenlegiPontszam || 0) + 1;
@@ -309,30 +320,20 @@
         function frissitsTabellat() {
             scoresRef.once('value').then((scoresSnapshot) => {
                 const scores = scoresSnapshot.val() || {};
-
-                // Összesített számláló logika
                 let totalScore = 0;
                 Object.values(scores).forEach(pont => {
                     totalScore += pont;
                 });
                 totalCountMessage.innerText = `Összes lemondás: ${totalScore}`;
-
-                // Felhasználónevek lekérése
                 usersRef.once('value').then((usersSnapshot) => {
                     const users = usersSnapshot.val() || {};
-
-                    // Adatok kombinálása
                     const tabellaAdat = Object.keys(scores).map(uid => {
                         return {
                             nev: (users[uid] && users[uid].username) ? users[uid].username : 'Ismeretlen',
                             pont: scores[uid]
                         };
                     });
-
-                    // Rendezés
                     tabellaAdat.sort((a, b) => b.pont - a.pont);
-
-                    // Megjelenítés
                     tabellaLista.innerHTML = '';
                     tabellaAdat.forEach(entry => {
                         const sor = document.createElement('div');
@@ -350,9 +351,8 @@
                 // Be van lépve
                 authContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
-                loginError.innerText = ''; // Hiba törlése
-                registerError.innerText = ''; // Hiba törlése
-
+                loginError.innerText = '';
+                registerError.innerText = ''; 
                 usersRef.child(user.uid).once('value').then(snapshot => {
                     const username = (snapshot.val() && snapshot.val().username) || user.email;
                     welcomeMessage.innerText = `Üdv, ${username}!`;
