@@ -149,3 +149,185 @@
                 </div>
         </div>
     </div>
+
+    <audio id="clickSound" preload="auto" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU8vT18/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pz8/Pw=="></audio>
+
+
+    <script>
+        // const firebaseConfig = {
+          apiKey: "AIzaSyDrNnPvPidkN1Ue9AEtn5KB0UTaDPQjWrY",
+          authDomain: "lemondok-f71e8.firebaseapp.com",
+          databaseURL: "https://lemondok-f71e8-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "lemondok-f71e8",
+          storageBucket: "lemondok-f71e8.firebasestorage.app",
+          messagingSenderId: "892789527717",
+          appId: "1:892789527717:web:3dc9f50b2571ffb646294c"
+        };
+        // -->
+
+        // --- Alkalmazás inicializálása ---
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+
+        // --- Referenciák az Adatbázis ágaihoz ---
+        const scoresRef = database.ref('scores');
+        const usersRef = database.ref('users');
+
+        // --- HTML Elemek elérése ---
+        const authContainer = document.getElementById('authContainer');
+        const gameContainer = document.getElementById('gameContainer');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const toggleToRegister = document.getElementById('toggleToRegister');
+        const toggleToLogin = document.getElementById('toggleToLogin');
+        
+        const logoutButton = document.getElementById('logoutButton');
+        const gomb = document.getElementById('pontGomb');
+        const tabellaLista = document.getElementById('tabellaLista');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+
+        const totalCountMessage = document.getElementById('totalCountMessage');
+        const clickSound = document.getElementById('clickSound');
+
+        // --- Logika ---
+
+        // 1. ÁTVÁLTÁS A FORMOK KÖZÖTT
+        toggleToRegister.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+        });
+        toggleToLogin.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        });
+
+        // 2. REGISZTRÁCIÓ
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    usersRef.child(user.uid).set({ username: username });
+                    scoresRef.child(user.uid).set(0); 
+                })
+                .catch((error) => {
+                    alert("Hiba a regisztráció során: " + error.message);
+                });
+        });
+
+        // 3. BEJELENTKEZÉS (*** ITT LETT JAVÍTVA ***)
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .catch((error) => {
+                    alert("Hiba a bejelentkezés során: " + error.message);
+                });
+        });
+
+        // 4. KIJELENTKEZÉS
+        logoutButton.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // 5. GOMBNYOMÁS (Animációval és Hanggal)
+        gomb.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            // Animáció
+            gomb.classList.add('clicked');
+            setTimeout(() => {
+                gomb.classList.remove('clicked');
+            }, 200); 
+
+            // Hang
+            clickSound.currentTime = 0; 
+            clickSound.play();
+
+            // Adatbázis írás
+            const userScoreRef = scoresRef.child(user.uid);
+            userScoreRef.transaction((jelenlegiPontszam) => {
+                return (jelenlegiPontszam || 0) + 1;
+            });
+        });
+
+        // 6. TABELLA FRISSÍTÉSE (Összesített számlálóval)
+        function frissitsTabellat() {
+            scoresRef.once('value').then((scoresSnapshot) => {
+                const scores = scoresSnapshot.val() || {};
+
+                // Összesített számláló logika
+                let totalScore = 0;
+                Object.values(scores).forEach(pont => {
+                    totalScore += pont;
+                });
+                totalCountMessage.innerText = `Összes lemondás: ${totalScore}`;
+
+                // Felhasználónevek lekérése
+                usersRef.once('value').then((usersSnapshot) => {
+                    const users = usersSnapshot.val() || {};
+
+                    // Adatok kombinálása
+                    const tabellaAdat = Object.keys(scores).map(uid => {
+                        return {
+                            nev: (users[uid] && users[uid].username) ? users[uid].username : 'Ismeretlen',
+                            pont: scores[uid]
+                        };
+                    });
+
+                    // Rendezés
+                    tabellaAdat.sort((a, b) => b.pont - a.pont);
+
+                    // Megjelenítés
+                    tabellaLista.innerHTML = '';
+                    tabellaAdat.forEach(entry => {
+                        const sor = document.createElement('div');
+                        sor.className = 'tabellaSor';
+                        sor.innerHTML = `<span class="nev">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
+                        tabellaLista.appendChild(sor);
+                    });
+                });
+            });
+        }
+
+        // 7. A KÖZPONTI FIGYELŐ (AUTH STATE)
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Be van lépve
+                authContainer.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+
+                // Üdvözlő üzenet
+                usersRef.child(user.uid).once('value').then(snapshot => {
+                    const username = (snapshot.val() && snapshot.val().username) || user.email;
+                    welcomeMessage.innerText = `Üdv, ${username}!`;
+                });
+
+                // Tabella figyelésének indítása
+                scoresRef.on('value', frissitsTabellat);
+
+            } else {
+                // Ki van lépve
+                authContainer.classList.remove('hidden');
+                gameContainer.classList.add('hidden');
+                welcomeMessage.innerText = '';
+                
+                // Tabella figyelésének leállítása
+                scoresRef.off('value', frissitsTabellat);
+                tabellaLista.innerHTML = ''; 
+
+                // Számlálók nullázása
+                totalCountMessage.innerText = 'Összesen: 0';
+            }
+        });
+    </script>
+</body>
+</html>
