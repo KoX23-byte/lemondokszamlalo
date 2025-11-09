@@ -480,7 +480,7 @@
                 // Szöveg frissítése
                 const minutes = Math.floor(msLeft / 60000);
                 const seconds = Math.floor((msLeft % 60000) / 1000);
-                gomb.innerText = `Várj... ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                gomb.innerText = `Nyugi van ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
                 // Időzítő indítása, ami másodpercenként frissíti a szöveget
                 cooldownInterval = setInterval(updateButtonCooldown, 1000);
