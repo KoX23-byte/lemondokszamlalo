@@ -60,9 +60,8 @@
         .authForm button { font-size: 18px; padding: 12px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
         #toggleToRegister, #toggleToLogin { color: #aaa; text-decoration: underline; cursor: pointer; margin-top: 15px; text-align: center; }
 
-        /* HIBAÜZENET STÍLUSA */
         .errorText {
-            color: #f44336; /* Piros */
+            color: #f44336;
             font-weight: bold;
             margin-top: 10px;
             text-align: center;
@@ -112,7 +111,7 @@
         }
         #tabellaContainer h2 { text-align: center; border-bottom: 2px solid #FFF; padding-bottom: 10px; }
         .tabellaSor { font-size: 20px; padding: 8px 0; display: flex; justify-content: space-between; }
-        .nev { font-weight: bold; }
+        .nev { font-weight: bold; } /* Az alapértelmezett szín (fehér) innen jön, ha nincs beállítva */
         .pont { color: #f44336; font-weight: bold; }
 
         /* HÁTTÉRKÉPEK STÍLUSA */
@@ -134,6 +133,37 @@
             opacity: 0.9;
             z-index: 1; /* Hátul */
         }
+
+        /*
+        *** ÚJ: SZÍNVÁLASZTÓ ÉS UTOLSÓ KATTINTÓ STÍLUSA ***
+        */
+        #lastClickerContainer {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #aaa;
+        }
+        #lastClickerName {
+            font-weight: bold;
+            color: #ffeb3b; /* Sárga */
+        }
+
+        #colorPickerContainer {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+        #colorPicker {
+            margin-left: 10px;
+            cursor: pointer;
+            /* Egy kis trükk, hogy a színválasztó ne legyen csúnya */
+            width: 40px;
+            height: 40px;
+            border: none;
+            padding: 0;
+            background: none;
+        }
+
     </style>
 </head>
 <body>
@@ -168,7 +198,17 @@
 
         <h3 id="welcomeMessage"></h3>
         
+        <div id="lastClickerContainer">
+            Legutóbb lemondott: <span id="lastClickerName">...</span>
+        </div>
+
         <button id="pontGomb">Lemondok</button>
+        
+        <div id="colorPickerContainer">
+            <label for="colorPicker">Profilszíned:</label>
+            <input type="color" id="colorPicker">
+        </div>
+
         <button id="logoutButton">Kijelentkezés</button>
 
         <div id="tabellaContainer">
@@ -179,6 +219,8 @@
     </div>
 
     <audio id="clickSound" preload="auto" src="gombhang.mp3"></audio>
+
+
     <script>
         const firebaseConfig = {
           apiKey: "AIzaSyDrNnPvPidkN1Ue9AEtn5KB0UTaDPQjWrY",
@@ -199,6 +241,12 @@
         // --- Referenciák az Adatbázis ágaihoz ---
         const scoresRef = database.ref('scores');
         const usersRef = database.ref('users');
+        
+        // *** ÚJ: REFERENCIA AZ UTOLSÓ KATTINTÓHOZ ***
+        const lastClickerRef = database.ref('lastClicker');
+        
+        // --- Globális változó ---
+        let currentUsername = ''; // A bejelentkezett felhasználó nevének tárolása
 
         // --- HTML Elemek elérése ---
         const authContainer = document.getElementById('authContainer');
@@ -219,21 +267,25 @@
         const totalCountMessage = document.getElementById('totalCountMessage');
         const clickSound = document.getElementById('clickSound');
 
+        // *** ÚJ: ELEMEK ELÉRÉSE ***
+        const lastClickerName = document.getElementById('lastClickerName');
+        const colorPicker = document.getElementById('colorPicker');
+
         // --- Logika ---
 
         // 1. ÁTVÁLTÁS A FORMOK KÖZÖTT
         toggleToRegister.addEventListener('click', () => {
             loginForm.classList.add('hidden');
             registerForm.classList.remove('hidden');
-            loginError.innerText = ''; // Hiba törlése váltáskor
+            loginError.innerText = '';
         });
         toggleToLogin.addEventListener('click', () => {
             loginForm.classList.remove('hidden');
             registerForm.classList.add('hidden');
-            registerError.innerText = ''; // Hiba törlése váltáskor
+            registerError.innerText = '';
         });
 
-        // 2. REGISZTRÁCIÓ (*** FRISSÍTETT HIBAKEZELÉS ***)
+        // 2. REGISZTRÁCIÓ
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
             registerError.innerText = ''; 
@@ -245,28 +297,24 @@
             auth.createUserWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
-                    usersRef.child(user.uid).set({ username: username });
+                    // Menti a nevet ÉS egy alapértelmezett fehér színt
+                    usersRef.child(user.uid).set({ 
+                        username: username,
+                        color: '#FFFFFF' // Alapértelmezett szín
+                    });
                     scoresRef.child(user.uid).set(0); 
                 })
                 .catch((error) => {
-                    // *** VÁLTOZTATÁS ITT: Hiba fordítása ***
                     switch (error.code) {
-                        case 'auth/email-already-in-use':
-                            registerError.innerText = 'Egyszer már regisztráltal he';
-                            break;
-                        case 'auth/weak-password':
-                            registerError.innerText = 'Ez a jelszó kevés lesz';
-                            break;
-                        case 'auth/invalid-email':
-                            registerError.innerText = 'Érvénytelen e-mail';
-                            break;
-                        default:
-                            registerError.innerText = 'Hiba a regisztráció során';
+                        case 'auth/email-already-in-use': registerError.innerText = 'Ez az e-mail cím már foglalt.'; break;
+                        case 'auth/weak-password': registerError.innerText = 'Túl gyenge a jelszó (min. 6 karakter).'; break;
+                        case 'auth/invalid-email': registerError.innerText = 'Érvénytelen e-mail formátum.'; break;
+                        default: registerError.innerText = 'Hiba a regisztráció során.';
                     }
                 });
         });
 
-        // 3. BEJELENTKEZÉS (*** FRISSÍTETT HIBAKEZELÉS ***)
+        // 3. BEJELENTKEZÉS
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             loginError.innerText = ''; 
@@ -275,26 +323,14 @@
             const password = document.getElementById('loginPassword').value;
 
             auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                     // Sikeres bejelentkezés
-                })
+                .then((userCredential) => { /* Sikeres bejelentkezés */ })
                 .catch((error) => {
-                    // *** VÁLTOZTATÁS ITT: Hiba fordítása ***
                     switch (error.code) {
-                        case 'auth/wrong-password':
-                            loginError.innerText = 'Szar jelszó!';
-                            break;
-                        case 'auth/user-not-found':
-                            loginError.innerText = 'Előbb regisztrálni kéne';
-                            break;
-                        case 'auth/invalid-email':
-                            loginError.innerText = 'Érvénytelen e-mail';
-                            break;
-                        case 'auth/too-many-requests':
-                            loginError.innerText = 'Túl sok próbálkozás. Próbáld később.';
-                            break;
-                        default:
-                            loginError.innerText = 'Hiba a bejelentkezés során.';
+                        case 'auth/wrong-password': loginError.innerText = 'Hibás jelszó!'; break;
+                        case 'auth/user-not-found': loginError.innerText = 'Nincs ilyen e-mail címmel fiók.'; break;
+                        case 'auth/invalid-email': loginError.innerText = 'Érvénytelen e-mail formátum.'; break;
+                        case 'auth/too-many-requests': loginError.innerText = 'Túl sok próbálkozás. Próbáld később.'; break;
+                        default: loginError.innerText = 'Hiba a bejelentkezés során.';
                     }
                 });
         });
@@ -304,19 +340,29 @@
             auth.signOut();
         });
 
-        // 5. GOMBNYOMÁS
+        // 5. GOMBNYOMÁS (*** FRISSÍTVE ***)
         gomb.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) return;
+            
+            // Hang
             clickSound.currentTime = 0; 
             clickSound.play();
+
+            // Adatbázis írás (Pontszám)
             const userScoreRef = scoresRef.child(user.uid);
             userScoreRef.transaction((jelenlegiPontszam) => {
                 return (jelenlegiPontszam || 0) + 1;
             });
+            
+            // *** ÚJ: UTOLSÓ KATTINTÓ MENTÉSE ***
+            // A 'currentUsername' globális változót használjuk, amit bejelentkezéskor állítottunk be
+            if (currentUsername) {
+                lastClickerRef.set(currentUsername);
+            }
         });
 
-        // 6. TABELLA FRISSÍTÉSE
+        // 6. TABELLA FRISSÍTÉSE (*** FRISSÍTVE ***)
         function frissitsTabellat() {
             scoresRef.once('value').then((scoresSnapshot) => {
                 const scores = scoresSnapshot.val() || {};
@@ -325,27 +371,56 @@
                     totalScore += pont;
                 });
                 totalCountMessage.innerText = `Összes lemondás: ${totalScore}`;
+                
                 usersRef.once('value').then((usersSnapshot) => {
                     const users = usersSnapshot.val() || {};
+                    
                     const tabellaAdat = Object.keys(scores).map(uid => {
                         return {
                             nev: (users[uid] && users[uid].username) ? users[uid].username : 'Ismeretlen',
+                            // *** ÚJ: SZÍN OLVASÁSA ***
+                            color: (users[uid] && users[uid].color) ? users[uid].color : '#FFFFFF', // Alapértelmezett fehér
                             pont: scores[uid]
                         };
                     });
+                    
                     tabellaAdat.sort((a, b) => b.pont - a.pont);
+                    
                     tabellaLista.innerHTML = '';
                     tabellaAdat.forEach(entry => {
                         const sor = document.createElement('div');
                         sor.className = 'tabellaSor';
-                        sor.innerHTML = `<span class="nev">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
+                        // *** ÚJ: SZÍN ALKALMAZÁSA A NÉVRE ***
+                        sor.innerHTML = `<span class="nev" style="color: ${entry.color}">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
                         tabellaLista.appendChild(sor);
                     });
                 });
             });
         }
+        
+        // *** ÚJ: SZÍNVÁLASZTÓ ESEMÉNY ***
+        colorPicker.addEventListener('change', (e) => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const newColor = e.target.value;
+            // Elmentjük az új színt a felhasználó profiljába
+            usersRef.child(user.uid).child('color').set(newColor);
+        });
 
-        // 7. A KÖZPONTI FIGYELŐ (AUTH STATE)
+        // *** ÚJ: UTOLSÓ KATTINTÓ FIGYELÉSE ***
+        function startLastClickerListener() {
+            lastClickerRef.on('value', (snapshot) => {
+                const name = snapshot.val();
+                if (name) {
+                    lastClickerName.innerText = name;
+                } else {
+                    lastClickerName.innerText = 'Még senki';
+                }
+            });
+        }
+
+        // 7. A KÖZPONTI FIGYELŐ (AUTH STATE) (*** FRISSÍTVE ***)
         auth.onAuthStateChanged((user) => {
             if (user) {
                 // Be van lépve
@@ -353,19 +428,40 @@
                 gameContainer.classList.remove('hidden');
                 loginError.innerText = '';
                 registerError.innerText = ''; 
+                
+                // Felhasználói adatok (név ÉS SZÍN) lekérése
                 usersRef.child(user.uid).once('value').then(snapshot => {
-                    const username = (snapshot.val() && snapshot.val().username) || user.email;
+                    const userData = snapshot.val();
+                    const username = (userData && userData.username) || user.email;
+                    const color = (userData && userData.color) || '#FFFFFF';
+                    
+                    // Üdvözlő üzenet
                     welcomeMessage.innerText = `Üdv, ${username}!`;
+                    // Globális változó beállítása
+                    currentUsername = username;
+                    // Színválasztó beállítása az elmentett értékre
+                    colorPicker.value = color;
                 });
+                
+                // Figyelők indítása
                 scoresRef.on('value', frissitsTabellat);
+                startLastClickerListener(); // Utolsó kattintó figyelése
+
             } else {
                 // Ki van lépve
                 authContainer.classList.remove('hidden');
                 gameContainer.classList.add('hidden');
                 welcomeMessage.innerText = '';
+                currentUsername = ''; // Név törlése
+                
+                // Figyelők leállítása
                 scoresRef.off('value', frissitsTabellat);
+                lastClickerRef.off('value'); // Utolsó kattintó figyelésének leállítása
+                
+                // Kijelzők nullázása
                 tabellaLista.innerHTML = ''; 
                 totalCountMessage.innerText = 'Összesen: 0';
+                lastClickerName.innerText = '...';
             }
         });
     </script>
