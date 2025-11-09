@@ -96,6 +96,15 @@
             box-shadow: 0 4px 0 #ab281e;
         }
 
+        /* *** ÚJ: INAKTÍV GOMB STÍLUSA (COOLDOWN) *** */
+        #pontGomb:disabled {
+            background-color: #555; /* Szürke */
+            box-shadow: 0 8px 0 #333;
+            cursor: not-allowed;
+            /* A lenyomás effekt kikapcsolása */
+            transform: translateY(0) !important;
+        }
+
         /* ÖSSZESÍTETT SZÁMLÁLÓ */
         #totalCountMessage {
             font-size: 22px;
@@ -110,8 +119,28 @@
             max-width: 300px;
         }
         #tabellaContainer h2 { text-align: center; border-bottom: 2px solid #FFF; padding-bottom: 10px; }
-        .tabellaSor { font-size: 20px; padding: 8px 0; display: flex; justify-content: space-between; }
-        .nev { font-weight: bold; } /* Az alapértelmezett szín (fehér) innen jön, ha nincs beállítva */
+        
+        /* *** FRISSÍTVE: TABELLA SOR (HELYEZÉS MIATT) *** */
+        .tabellaSor { 
+            font-size: 20px; 
+            padding: 8px 0; 
+            display: flex; 
+            justify-content: space-between; /* A két végére tolja a "Név Részt" és a "Pontot" */
+            align-items: baseline;
+        }
+        .nevResz {
+            display: flex;
+            align-items: baseline;
+        }
+        .helyezes {
+            font-weight: bold;
+            color: #aaa;
+            margin-right: 8px;
+            font-size: 18px;
+            width: 2.5em; /* Fix szélesség, hogy ne ugráljon */
+            text-align: right;
+        }
+        .nev { font-weight: bold; }
         .pont { color: #f44336; font-weight: bold; }
 
         /* HÁTTÉRKÉPEK STÍLUSA */
@@ -134,9 +163,7 @@
             z-index: 1; /* Hátul */
         }
 
-        /*
-        *** ÚJ: SZÍNVÁLASZTÓ ÉS UTOLSÓ KATTINTÓ STÍLUSA ***
-        */
+        /* SZÍNVÁLASZTÓ ÉS UTOLSÓ KATTINTÓ STÍLUSA */
         #lastClickerContainer {
             margin-top: 20px;
             font-size: 18px;
@@ -146,7 +173,6 @@
             font-weight: bold;
             color: #ffeb3b; /* Sárga */
         }
-
         #colorPickerContainer {
             margin-top: 20px;
             display: flex;
@@ -156,14 +182,12 @@
         #colorPicker {
             margin-left: 10px;
             cursor: pointer;
-            /* Egy kis trükk, hogy a színválasztó ne legyen csúnya */
             width: 40px;
             height: 40px;
             border: none;
             padding: 0;
             background: none;
         }
-
     </style>
 </head>
 <body>
@@ -229,7 +253,7 @@
           projectId: "lemondok-f71e8",
           storageBucket: "lemondok-f71e8.firebasestorage.app",
           messagingSenderId: "892789527717",
-          appId: "1:892789527717:web:3dc9f0b2571ffb646294c"
+          appId: "1:892789527717:web:3dc9f50b2571ffb646294c"
         };
         // -->
 
@@ -241,12 +265,13 @@
         // --- Referenciák az Adatbázis ágaihoz ---
         const scoresRef = database.ref('scores');
         const usersRef = database.ref('users');
-        
-        // *** ÚJ: REFERENCIA AZ UTOLSÓ KATTINTÓHOZ ***
         const lastClickerRef = database.ref('lastClicker');
         
-        // --- Globális változó ---
-        let currentUsername = ''; // A bejelentkezett felhasználó nevének tárolása
+        // --- Globális változók ---
+        let currentUsername = '';
+        let currentUserLastClick = 0; // *** ÚJ: A felhasználó utolsó kattintásának ideje ***
+        let cooldownInterval = null;  // *** ÚJ: Az időzítő (interval) tárolója ***
+        const COOLDOWN_TIME = 5 * 60 * 1000; // 5 perc ezredmásodpercben
 
         // --- HTML Elemek elérése ---
         const authContainer = document.getElementById('authContainer');
@@ -267,7 +292,6 @@
         const totalCountMessage = document.getElementById('totalCountMessage');
         const clickSound = document.getElementById('clickSound');
 
-        // *** ÚJ: ELEMEK ELÉRÉSE ***
         const lastClickerName = document.getElementById('lastClickerName');
         const colorPicker = document.getElementById('colorPicker');
 
@@ -297,10 +321,10 @@
             auth.createUserWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
-                    // Menti a nevet ÉS egy alapértelmezett fehér színt
                     usersRef.child(user.uid).set({ 
                         username: username,
-                        color: '#FFFFFF' // Alapértelmezett szín
+                        color: '#FFFFFF',
+                        lastClickTimestamp: 0 // *** ÚJ: Kezdő időbélyeg ***
                     });
                     scoresRef.child(user.uid).set(0); 
                 })
@@ -340,29 +364,45 @@
             auth.signOut();
         });
 
-        // 5. GOMBNYOMÁS (*** FRISSÍTVE ***)
+        // 5. GOMBNYOMÁS (*** FRISSÍTVE: COOLDOWN ELLENŐRZÉS ***)
         gomb.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) return;
             
-            // Hang
+            const currentTime = Date.now();
+            
+            // 1. Ellenőrizzük a Cooldown-t
+            if (currentTime - currentUserLastClick < COOLDOWN_TIME) {
+                return; // A gomb már inaktív, de ez egy extra védelem
+            }
+            
+            // 2. Hang
             clickSound.currentTime = 0; 
             clickSound.play();
-
-            // Adatbázis írás (Pontszám)
+            
+            // 3. Pontszám írása
             const userScoreRef = scoresRef.child(user.uid);
             userScoreRef.transaction((jelenlegiPontszam) => {
                 return (jelenlegiPontszam || 0) + 1;
+            }).then(() => {
+                // SIKER ESETÉN
+                const successTime = Date.now(); // Pontos idő, a tranzakció után
+                
+                // 4. Timestamp mentése (DB + lokális)
+                usersRef.child(user.uid).child('lastClickTimestamp').set(successTime);
+                currentUserLastClick = successTime;
+                
+                // 5. Cooldown UI indítása
+                updateButtonCooldown();
+                
+                // 6. Utolsó kattintó mentése
+                if (currentUsername) {
+                    lastClickerRef.set(currentUsername);
+                }
             });
-            
-            // *** ÚJ: UTOLSÓ KATTINTÓ MENTÉSE ***
-            // A 'currentUsername' globális változót használjuk, amit bejelentkezéskor állítottunk be
-            if (currentUsername) {
-                lastClickerRef.set(currentUsername);
-            }
         });
 
-        // 6. TABELLA FRISSÍTÉSE (*** FRISSÍTVE ***)
+        // 6. TABELLA FRISSÍTÉSE (*** FRISSÍTVE: HELYEZÉS KIÍRÁSA ***)
         function frissitsTabellat() {
             scoresRef.once('value').then((scoresSnapshot) => {
                 const scores = scoresSnapshot.val() || {};
@@ -378,8 +418,7 @@
                     const tabellaAdat = Object.keys(scores).map(uid => {
                         return {
                             nev: (users[uid] && users[uid].username) ? users[uid].username : 'Ismeretlen',
-                            // *** ÚJ: SZÍN OLVASÁSA ***
-                            color: (users[uid] && users[uid].color) ? users[uid].color : '#FFFFFF', // Alapértelmezett fehér
+                            color: (users[uid] && users[uid].color) ? users[uid].color : '#FFFFFF',
                             pont: scores[uid]
                         };
                     });
@@ -387,28 +426,32 @@
                     tabellaAdat.sort((a, b) => b.pont - a.pont);
                     
                     tabellaLista.innerHTML = '';
-                    tabellaAdat.forEach(entry => {
+                    tabellaAdat.forEach((entry, index) => { // *** ÚJ: INDEX VÁLTOZÓ ***
                         const sor = document.createElement('div');
                         sor.className = 'tabellaSor';
-                        // *** ÚJ: SZÍN ALKALMAZÁSA A NÉVRE ***
-                        sor.innerHTML = `<span class="nev" style="color: ${entry.color}">${entry.nev}:</span> <span class="pont">${entry.pont}</span>`;
+                        // *** ÚJ: HELYEZÉS HOZZÁADVA A HTML-HEZ ***
+                        sor.innerHTML = `
+                            <div class="nevResz">
+                                <span class="helyezes">${index + 1}.</span>
+                                <span class="nev" style="color: ${entry.color}">${entry.nev}:</span>
+                            </div>
+                            <span class="pont">${entry.pont}</span>`;
                         tabellaLista.appendChild(sor);
                     });
                 });
             });
         }
         
-        // *** ÚJ: SZÍNVÁLASZTÓ ESEMÉNY ***
+        // 7. SZÍNVÁLASZTÓ ESEMÉNY
         colorPicker.addEventListener('change', (e) => {
             const user = auth.currentUser;
             if (!user) return;
             
             const newColor = e.target.value;
-            // Elmentjük az új színt a felhasználó profiljába
             usersRef.child(user.uid).child('color').set(newColor);
         });
 
-        // *** ÚJ: UTOLSÓ KATTINTÓ FIGYELÉSE ***
+        // 8. UTOLSÓ KATTINTÓ FIGYELÉSE
         function startLastClickerListener() {
             lastClickerRef.on('value', (snapshot) => {
                 const name = snapshot.val();
@@ -419,8 +462,37 @@
                 }
             });
         }
+        
+        // *** ÚJ: GOMB COOLDOWN KEZELŐ FÜGGVÉNY ***
+        function updateButtonCooldown() {
+            if (cooldownInterval) {
+                clearInterval(cooldownInterval); // Előző intervallum törlése
+                cooldownInterval = null;
+            }
 
-        // 7. A KÖZPONTI FIGYELŐ (AUTH STATE) (*** FRISSÍTVE ***)
+            const currentTime = Date.now();
+            const msLeft = (currentUserLastClick + COOLDOWN_TIME) - currentTime;
+
+            if (msLeft > 0) {
+                gomb.disabled = true;
+                gomb.style.cursor = 'not-allowed';
+
+                // Szöveg frissítése
+                const minutes = Math.floor(msLeft / 60000);
+                const seconds = Math.floor((msLeft % 60000) / 1000);
+                gomb.innerText = `Várj... ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+                // Időzítő indítása, ami másodpercenként frissíti a szöveget
+                cooldownInterval = setInterval(updateButtonCooldown, 1000);
+            } else {
+                gomb.disabled = false;
+                gomb.innerText = 'Lemondok';
+                gomb.style.cursor = 'pointer';
+            }
+        }
+
+
+        // 9. A KÖZPONTI FIGYELŐ (AUTH STATE) (*** FRISSÍTVE ***)
         auth.onAuthStateChanged((user) => {
             if (user) {
                 // Be van lépve
@@ -429,34 +501,43 @@
                 loginError.innerText = '';
                 registerError.innerText = ''; 
                 
-                // Felhasználói adatok (név ÉS SZÍN) lekérése
                 usersRef.child(user.uid).once('value').then(snapshot => {
                     const userData = snapshot.val();
                     const username = (userData && userData.username) || user.email;
                     const color = (userData && userData.color) || '#FFFFFF';
                     
-                    // Üdvözlő üzenet
+                    // *** ÚJ: UTOLSÓ KATTINTÁS IDEJÉNEK LEKÉRÉSE ***
+                    currentUserLastClick = (userData && userData.lastClickTimestamp) || 0;
+                    
                     welcomeMessage.innerText = `Üdv, ${username}!`;
-                    // Globális változó beállítása
                     currentUsername = username;
-                    // Színválasztó beállítása az elmentett értékre
                     colorPicker.value = color;
+                    
+                    // *** ÚJ: COOLDOWN INDÍTÁSA BELÉPÉSKOR ***
+                    updateButtonCooldown();
                 });
                 
                 // Figyelők indítása
                 scoresRef.on('value', frissitsTabellat);
-                startLastClickerListener(); // Utolsó kattintó figyelése
+                startLastClickerListener(); 
 
             } else {
                 // Ki van lépve
                 authContainer.classList.remove('hidden');
                 gameContainer.classList.add('hidden');
                 welcomeMessage.innerText = '';
-                currentUsername = ''; // Név törlése
+                currentUsername = ''; 
+                currentUserLastClick = 0; // Időzítő nullázása
+                
+                // *** ÚJ: IDŐZÍTŐ LEÁLLÍTÁSA ***
+                if (cooldownInterval) {
+                    clearInterval(cooldownInterval);
+                    cooldownInterval = null;
+                }
                 
                 // Figyelők leállítása
                 scoresRef.off('value', frissitsTabellat);
-                lastClickerRef.off('value'); // Utolsó kattintó figyelésének leállítása
+                lastClickerRef.off('value'); 
                 
                 // Kijelzők nullázása
                 tabellaLista.innerHTML = ''; 
